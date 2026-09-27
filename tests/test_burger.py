@@ -1,66 +1,46 @@
-import praktikum.ingredient_types
-
-
+import pytest
 from unittest.mock import Mock
-from praktikum.burger import Burger, Bun
-from praktikum.database import Database
+
+from praktikum.burger import Burger
+from praktikum.bun import Bun
+from praktikum.ingredient_types import (
+    INGREDIENT_TYPE_FILLING,
+    INGREDIENT_TYPE_SAUCE,
+)
 
 
 class TestBurger:
 
-    """ Тест на установку булочек """
     def test_set_buns(self):
         burger = Burger()
-        bun = Bun('Name_bun', 100.0)
+        bun = Bun("black bun", 100)
+
         burger.set_buns(bun)
+
         assert burger.bun == bun
 
-    """ Тест на добавление ингредиента """
     def test_add_ingredient(self):
         burger = Burger()
-        mock_ingredient = Mock()
-        mock_ingredient.get_name.return_value = 'Name_bun'
-        mock_ingredient.get_price.return_value = 9.0
-        mock_ingredient.get_type.return_value = praktikum.ingredient_types.INGREDIENT_TYPE_FILLING
-        burger.add_ingredient(mock_ingredient)
-        assert burger.ingredients[0].get_price() == 9.0
-        assert burger.ingredients[0].get_name() == 'Name_bun'
-        assert burger.ingredients[0].get_type() == praktikum.ingredient_types.INGREDIENT_TYPE_FILLING
+        ingredient = Mock()
 
-    """ Тест на удаление ингредиента """
+        burger.add_ingredient(ingredient)
+
+        assert burger.ingredients == [ingredient]
+
     def test_remove_ingredient(self):
         burger = Burger()
-        mock_ingredient = Mock()
-        burger.add_ingredient(mock_ingredient)
+        ingredient_1 = Mock()
+        ingredient_2 = Mock()
+
+        burger.add_ingredient(ingredient_1)
+        burger.add_ingredient(ingredient_2)
+
         burger.remove_ingredient(0)
-        assert len(burger.ingredients) == 0
 
-    """ Тест на получение цены бургера"""
-    def test_get_price(self):
-        burger = Burger()
-        database = Database()
-        burger.set_buns(database.available_buns()[0])
-        burger.add_ingredient(database.available_ingredients()[0])
-        burger.add_ingredient(database.available_ingredients()[3])
-        assert burger.get_price() == 400.0
+        assert burger.ingredients == [ingredient_2]
 
-    """ Тест на получение чека """
-    def test_get_receipt(self):
-        burger = Burger()
-        database = Database()
-        burger.set_buns(database.available_buns()[0])
-        burger.add_ingredient(database.available_ingredients()[0])
-        burger.add_ingredient(database.available_ingredients()[3])
-        expected_receipt = "(==== black bun ====)\n"\
-                           "= sauce hot sauce =\n"\
-                           "= filling cutlet =\n"\
-                           "(==== black bun ====)\n\n"\
-                           "Price: 400"
-        assert expected_receipt == burger.get_receipt()
-    
     def test_move_ingredient(self):
         burger = Burger()
-
         ingredient_1 = Mock()
         ingredient_2 = Mock()
         ingredient_3 = Mock()
@@ -74,5 +54,95 @@ class TestBurger:
         assert burger.ingredients == [
             ingredient_2,
             ingredient_3,
-            ingredient_1
+            ingredient_1,
         ]
+
+    @pytest.mark.parametrize(
+        "bun_price, ingredient_prices, expected_price",
+        [
+            (100, [], 200),
+            (100, [50], 250),
+            (100, [50, 25], 275),
+            (200, [100, 50], 550),
+        ],
+    )
+    def test_get_price(
+        self,
+        bun_price,
+        ingredient_prices,
+        expected_price,
+    ):
+        burger = Burger()
+
+        bun = Mock()
+        bun.get_price.return_value = bun_price
+        burger.set_buns(bun)
+
+        for price in ingredient_prices:
+            ingredient = Mock()
+            ingredient.get_price.return_value = price
+            burger.add_ingredient(ingredient)
+
+        assert burger.get_price() == expected_price
+
+    @pytest.mark.parametrize(
+        "ingredient_type, ingredient_name, expected_type",
+        [
+            (INGREDIENT_TYPE_SAUCE, "hot sauce", "sauce"),
+            (INGREDIENT_TYPE_FILLING, "cutlet", "filling"),
+        ],
+    )
+    def test_get_receipt_ingredient(
+        self,
+        ingredient_type,
+        ingredient_name,
+        expected_type,
+    ):
+        burger = Burger()
+
+        bun = Mock()
+        bun.get_name.return_value = "black bun"
+        bun.get_price.return_value = 100
+        burger.set_buns(bun)
+
+        ingredient = Mock()
+        ingredient.get_type.return_value = ingredient_type
+        ingredient.get_name.return_value = ingredient_name
+        ingredient.get_price.return_value = 50
+        burger.add_ingredient(ingredient)
+
+        receipt = burger.get_receipt()
+
+        assert f"= {expected_type} {ingredient_name} =" in receipt
+
+    def test_get_receipt(self):
+        burger = Burger()
+
+        bun = Mock()
+        bun.get_name.return_value = "black bun"
+        bun.get_price.return_value = 100
+        burger.set_buns(bun)
+
+        ingredient_1 = Mock()
+        ingredient_1.get_type.return_value = INGREDIENT_TYPE_SAUCE
+        ingredient_1.get_name.return_value = "hot sauce"
+        ingredient_1.get_price.return_value = 100
+
+        ingredient_2 = Mock()
+        ingredient_2.get_type.return_value = INGREDIENT_TYPE_FILLING
+        ingredient_2.get_name.return_value = "cutlet"
+        ingredient_2.get_price.return_value = 100
+
+        burger.add_ingredient(ingredient_1)
+        burger.add_ingredient(ingredient_2)
+
+        expected_receipt = (
+            "(==== black bun ====)\n"
+            "= sauce hot sauce =\n"
+            "= filling cutlet =\n"
+            "(==== black bun ====)\n"
+            "\n"
+            "Price: 400"
+        )
+
+        assert burger.get_receipt() == expected_receipt
