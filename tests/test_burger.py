@@ -111,9 +111,15 @@ class TestBurger:
         ingredient.get_price.return_value = 50
         burger.add_ingredient(ingredient)
 
-        receipt = burger.get_receipt()
+        expected_receipt = (
+            "(==== black bun ====)\n"
+            f"= {expected_type} {ingredient_name} =\n"
+            "(==== black bun ====)\n"
+            "\n"
+            "Price: 250"
+        )
 
-        assert f"= {expected_type} {ingredient_name} =" in receipt
+        assert burger.get_receipt() == expected_receipt
 
     def test_get_receipt(self):
         burger = Burger()
